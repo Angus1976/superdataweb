@@ -1,0 +1,4 @@
+# file: /Users/angusliu/Desktop/code/superdata_web/src/interview/router.py
+# hypothesis_version: 6.141.1
+
+[400, 401, 403, 404, 409, 422, 502, 504, '.', '/api/auth/token', '/api/interview', '/health', '/projects', '/templates', 'Extra details', 'Request trace ID', 'Template not found', 'bad_gateway', 'bad_request', 'conflict', 'error', 'error_count', 'errors', 'extraction_result', 'file_name', 'forbidden', 'gateway_timeout', 'has_predictions', 'health', 'interview', 'merged_data', 'message', 'not_found', 'ok', 'parsed_entities', 'parsed_relations', 'parsed_rules', 'processing', 'project_id', 'status', 'success_count', 'suggestions', 'sync_result', 'task_id', 'task_ids', 'total_entities', 'total_relations', 'total_rules', 'unauthorized', 'validation_error', '标签生成任务已提交']

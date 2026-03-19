@@ -1,0 +1,4 @@
+# file: /Users/angusliu/Desktop/code/superdata_web/src/interview/security.py
+# hypothesis_version: 6.141.1
+
+[0.6, 0.85, 0.9, 'CN_BANK_CARD', 'CN_ID_CARD', 'CN_PHONE', 'CREDIT_CARD', 'EMAIL_ADDRESS', 'IBAN_CODE', 'IP_ADDRESS', 'PERSON', 'PHONE_NUMBER', 'cn_bank', 'cn_id', 'cn_mobile', 'cn_phone_recognizer', 'en', 'project_id', 'tenant_id']

@@ -1,0 +1,4 @@
+# file: /Users/angusliu/Desktop/code/superdata_web/src/interview/quality_assessor.py
+# hypothesis_version: 6.141.1
+
+[0.0, 0.85, 1.0, 'accuracy', 'completeness', 'consistency', '建议添加业务实体', '建议添加业务规则', '建议添加实体关系']

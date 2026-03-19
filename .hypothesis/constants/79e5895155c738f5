@@ -1,0 +1,4 @@
+# file: /Users/angusliu/Desktop/code/superdata_web/src/interview/tasks.py
+# hypothesis_version: 6.141.1
+
+[0.0, 'annotations_count', 'completed', 'confidence', 'entities', 'error', 'failed', 'label', 'name', 'neo4j', 'postgresql', 'processing', 'project_id', 'quality', 'relations', 'rules', 'status', 'store']

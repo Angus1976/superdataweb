@@ -1,0 +1,4 @@
+# file: /Users/angusliu/Desktop/code/superdata_web/src/interview/label_constructor.py
+# hypothesis_version: 6.141.1
+
+['entities', 'mapping', 'neo4j', 'postgresql', 'relations', 'rules']

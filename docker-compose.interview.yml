@@ -1,0 +1,35 @@
+version: "3.8"
+
+# Interview service addition for docker-compose.yml
+# Merge into existing docker-compose.yml or use: docker compose -f docker-compose.yml -f docker-compose.interview.yml up
+
+services:
+  interview-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.interview
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/superinsight
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - JWT_ALGORITHM=HS256
+      - PROMETHEUS_ENABLED=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - superinsight-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/interview/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  superinsight-network:
+    external: true

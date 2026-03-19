@@ -1,0 +1,4 @@
+# file: /Users/angusliu/Desktop/code/superdata_web/src/interview/system.py
+# hypothesis_version: 6.141.1
+
+[404, 409, 'Session not found', 'active', 'assistant', 'business_domain', 'business_rule', 'completed', 'content', 'created_at', 'current_round', 'ended_at', 'entity_attribute', 'id', 'industry', 'max_rounds', 'messages', 'name', 'project_id', 'raw_requirements', 'relation', 'role', 'round_number', 'sanitized_content', 'status', 'template_name', 'tenant_id', 'updated_at', 'user', 'workflow', '业务规则的边界条件未明确', '建议描述异常处理规则', '建议明确实体间的关联关系', '建议补充实体的属性约束', '建议补充审批流程细节', '建议说明数据校验规则', '请描述该规则在极端情况下的处理方式']

@@ -1,0 +1,4 @@
+# file: /Users/angusliu/Desktop/code/superdata_web/src/interview/templates.py
+# hypothesis_version: 6.141.1
+
+['config', 'created_at', 'ecommerce', 'finance', 'focus_areas', 'id', 'industry', 'is_builtin', 'manufacturing', 'max_rounds', 'name', 'system_prompt', 'updated_at', '交易流程', '供应链', '促销规则', '制造行业模板', '商品管理', '生产工艺', '电商行业模板', '订单流程', '账户体系', '质量检测', '金融行业模板', '风控规则']
