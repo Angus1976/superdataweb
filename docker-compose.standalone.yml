@@ -1,0 +1,74 @@
+# Standalone interview service with isolated postgres & redis instances
+# Usage: docker compose -f docker-compose.standalone.yml up -d
+
+services:
+  interview-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.interview
+    ports:
+      - "8011:8001"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@interview-postgres:5432/superinsight
+      - REDIS_URL=redis://interview-redis:6379/0
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - PROMETHEUS_ENABLED=true
+    depends_on:
+      interview-postgres:
+        condition: service_healthy
+      interview-redis:
+        condition: service_healthy
+    networks:
+      - interview-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/interview/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  interview-postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=superinsight
+    ports:
+      - "5433:5432"
+    volumes:
+      - interview-pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    networks:
+      - interview-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  interview-redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - interview-redisdata:/data
+    networks:
+      - interview-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  interview-pgdata:
+  interview-redisdata:
+
+networks:
+  interview-network:
+    driver: bridge
