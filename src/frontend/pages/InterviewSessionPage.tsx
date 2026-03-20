@@ -5,7 +5,7 @@
  * 一键补全、侧边栏实体展示、30 轮自动结束提示。
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Card,
   Input,
@@ -19,6 +19,7 @@ import {
   Badge,
   Space,
   Drawer,
+  message as antMessage,
 } from 'antd';
 import {
   SendOutlined,
@@ -28,6 +29,9 @@ import {
 } from '@ant-design/icons';
 import { useParams } from 'react-router-dom';
 import InterviewLayout from '../layouts/InterviewLayout';
+import VoiceRecorder from '../components/VoiceRecorder';
+import TranscriptionPanel from '../components/TranscriptionPanel';
+import type { PartialTranscript, CompletionOutline } from '../types/asr';
 
 const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -36,6 +40,7 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   gaps?: Array<{ gap_description: string; suggested_question: string }>;
+  source?: 'voice';
 }
 
 interface CompletionSuggestion {
@@ -54,6 +59,9 @@ const InterviewSessionPage: React.FC = () => {
   const [showCompletions, setShowCompletions] = useState(false);
   const [showEntities, setShowEntities] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [transcripts, setTranscripts] = useState<PartialTranscript[]>([]);
+  const [outline, setOutline] = useState<CompletionOutline | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const maxRounds = 30;
@@ -101,6 +109,61 @@ const InterviewSessionPage: React.FC = () => {
     setShowCompletions(true);
   };
 
+  // ------------------------------------------------------------------
+  // Voice recording handlers
+  // ------------------------------------------------------------------
+
+  const handleTranscript = useCallback((transcript: PartialTranscript) => {
+    setTranscripts((prev) => [...prev, transcript]);
+  }, []);
+
+  const handleOutline = useCallback((newOutline: CompletionOutline) => {
+    setOutline(newOutline);
+  }, []);
+
+  const handleRecordingStart = useCallback(() => {
+    setIsRecording(true);
+    setTranscripts([]);
+    setOutline(null);
+  }, []);
+
+  const handleRecordingStop = useCallback(
+    async (accumulatedText: string) => {
+      setIsRecording(false);
+      if (!accumulatedText.trim()) return;
+
+      // Submit accumulated text as a voice-sourced user message
+      const userMsg: ChatMessage = { role: 'user', content: accumulatedText, source: 'voice' };
+      setMessages((prev) => [...prev, userMsg]);
+      setLoading(true);
+
+      try {
+        // Stub: in production, call POST /api/interview/sessions/{id}/messages
+        const aiContent = `感谢您的语音输入。关于「${accumulatedText.slice(0, 50)}」，请问还有哪些具体的业务规则需要补充？`;
+        const gaps =
+          currentRound > 1
+            ? [{ gap_description: '边界条件未明确', suggested_question: '请描述极端情况的处理方式' }]
+            : [];
+
+        const aiMsg: ChatMessage = { role: 'assistant', content: aiContent, gaps };
+        setMessages((prev) => [...prev, aiMsg]);
+        setCurrentRound((r) => r + 1);
+
+        if (currentRound + 1 >= maxRounds) {
+          setSessionEnded(true);
+          setSummary(`访谈已完成，共 ${maxRounds} 轮对话。`);
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentRound, maxRounds],
+  );
+
+  const handleVoiceError = useCallback((error: string) => {
+    antMessage.error(error);
+  }, []);
+
   return (
     <InterviewLayout>
       <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
@@ -126,6 +189,15 @@ const InterviewSessionPage: React.FC = () => {
           <Alert message="访谈摘要" description={summary} type="success" showIcon style={{ marginBottom: 8 }} />
         )}
 
+        {/* Transcription Panel – shown when recording or when transcripts exist */}
+        {(isRecording || transcripts.length > 0) && (
+          <TranscriptionPanel
+            transcripts={transcripts}
+            isRecording={isRecording}
+            outline={outline}
+          />
+        )}
+
         {/* Messages */}
         <div ref={listRef} style={{ flex: 1, overflow: 'auto', marginBottom: 8 }}>
           <List
@@ -139,7 +211,12 @@ const InterviewSessionPage: React.FC = () => {
                     backgroundColor: msg.role === 'user' ? '#e6f7ff' : '#f6ffed',
                   }}
                 >
-                  <Text>{msg.content}</Text>
+                  <Text>
+                    {msg.source === 'voice' && (
+                      <AudioOutlined style={{ marginRight: 6, color: '#1890ff' }} title="语音输入" />
+                    )}
+                    {msg.content}
+                  </Text>
                   {msg.gaps && msg.gaps.length > 0 && (
                     <div style={{ marginTop: 8 }}>
                       {msg.gaps.map((g, i) => (
@@ -163,14 +240,23 @@ const InterviewSessionPage: React.FC = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onPressEnter={(e) => { if (!e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            placeholder={sessionEnded ? '访谈已结束' : '输入您的业务需求...'}
-            disabled={sessionEnded}
+            placeholder={sessionEnded ? '访谈已结束' : isRecording ? '录音中，请使用语音输入...' : '输入您的业务需求...'}
+            disabled={sessionEnded || isRecording}
             autoSize={{ minRows: 1, maxRows: 4 }}
             style={{ flex: 1 }}
           />
-          <Button type="primary" icon={<SendOutlined />} onClick={handleSend} disabled={sessionEnded || loading}>
+          <Button type="primary" icon={<SendOutlined />} onClick={handleSend} disabled={sessionEnded || loading || isRecording}>
             发送
           </Button>
+          <VoiceRecorder
+            sessionId={projectId ?? ''}
+            disabled={sessionEnded}
+            onTranscript={handleTranscript}
+            onOutline={handleOutline}
+            onRecordingStart={handleRecordingStart}
+            onRecordingStop={handleRecordingStop}
+            onError={handleVoiceError}
+          />
         </div>
       </div>
 
