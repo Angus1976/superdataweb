@@ -6,10 +6,10 @@ import {
 import {
   PlusOutlined, UploadOutlined, SearchOutlined, UserOutlined,
   EditOutlined, DeleteOutlined, ExclamationCircleOutlined,
-  MailOutlined, LockOutlined,
+  MailOutlined, LockOutlined, BankOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { userApi } from '../services/api';
+import { userApi, enterpriseApi } from '../services/api';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload';
 
@@ -52,6 +52,11 @@ const AdminUserPage: React.FC = () => {
 
   // Import result modal
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+
+  // Enterprise modal
+  const [enterpriseOpen, setEnterpriseOpen] = useState(false);
+  const [enterpriseLoading, setEnterpriseLoading] = useState(false);
+  const [enterpriseForm] = Form.useForm();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -129,6 +134,21 @@ const AdminUserPage: React.FC = () => {
     });
   };
 
+  // Download import template
+  const handleDownloadTemplate = () => {
+    const BOM = '\uFEFF';
+    const header = 'email,password,role';
+    const example = 'user@company.com,password123,member';
+    const csv = BOM + header + '\n' + example + '\n';
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'user_import_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Batch import
   const handleImport = async (file: File) => {
     try {
@@ -140,6 +160,21 @@ const AdminUserPage: React.FC = () => {
       message.error(err?.response?.data?.detail || t('common.error'));
     }
     return false; // prevent default upload
+  };
+
+  // Create enterprise
+  const handleCreateEnterprise = async (values: { name: string; code: string; domain?: string }) => {
+    setEnterpriseLoading(true);
+    try {
+      await enterpriseApi.create(values);
+      message.success(t('admin.enterpriseCreateSuccess'));
+      setEnterpriseOpen(false);
+      enterpriseForm.resetFields();
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || t('common.error'));
+    } finally {
+      setEnterpriseLoading(false);
+    }
   };
 
   const columns: ColumnsType<UserRecord> = [
@@ -223,6 +258,12 @@ const AdminUserPage: React.FC = () => {
             >
               <Button icon={<UploadOutlined />}>{t('admin.batchImport')}</Button>
             </Upload>
+            <Button icon={<DownloadOutlined />} onClick={handleDownloadTemplate}>
+              {t('admin.downloadTemplate')}
+            </Button>
+            <Button icon={<BankOutlined />} onClick={() => setEnterpriseOpen(true)}>
+              {t('admin.addEnterprise')}
+            </Button>
           </Space>
           <Input
             placeholder={t('admin.searchPlaceholder')}
@@ -343,6 +384,32 @@ const AdminUserPage: React.FC = () => {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Enterprise Modal */}
+      <Modal
+        title={t('admin.addEnterprise')}
+        open={enterpriseOpen}
+        onCancel={() => { setEnterpriseOpen(false); enterpriseForm.resetFields(); }}
+        footer={null}
+        destroyOnClose
+      >
+        <Form form={enterpriseForm} layout="vertical" onFinish={handleCreateEnterprise}>
+          <Form.Item name="name" label={t('admin.enterpriseName')} rules={[{ required: true, message: t('admin.enterpriseNamePlaceholder') }]}>
+            <Input prefix={<BankOutlined />} placeholder={t('admin.enterpriseNamePlaceholder')} />
+          </Form.Item>
+          <Form.Item name="code" label={t('admin.enterpriseCode')} rules={[{ required: true, message: t('admin.enterpriseCodePlaceholder') }]}>
+            <Input placeholder={t('admin.enterpriseCodePlaceholder')} />
+          </Form.Item>
+          <Form.Item name="domain" label={t('admin.enterpriseDomain')}>
+            <Input placeholder={t('admin.enterpriseDomainPlaceholder')} />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" block loading={enterpriseLoading} style={primaryBtn}>
+              {t('common.confirm')}
+            </Button>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

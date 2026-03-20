@@ -13,6 +13,8 @@ import {
   HistoryOutlined,
   UserOutlined,
   LogoutOutlined,
+  FolderOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -58,6 +60,16 @@ const InterviewLayout: React.FC<InterviewLayoutProps> = ({ children }) => {
             key: '/admin/users',
             icon: <UserOutlined />,
             label: t('menu.userManagement', '用户管理'),
+          },
+          {
+            key: '/admin/files',
+            icon: <FolderOutlined />,
+            label: t('menu.fileManagement', '文件管理'),
+          },
+          {
+            key: '/admin/llm-config',
+            icon: <ApiOutlined />,
+            label: t('menu.llmConfig', 'LLM 配置'),
           },
         ]
       : []),

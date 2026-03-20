@@ -75,7 +75,7 @@ class ProjectCreateRequest(BaseModel):
     """项目创建请求。"""
 
     name: str = Field(..., min_length=1, max_length=255)
-    industry: str = Field(..., pattern=r"^(finance|ecommerce|manufacturing)$")
+    industry: Optional[str] = Field(None, max_length=100)
     business_domain: Optional[str] = None
 
 
@@ -85,7 +85,7 @@ class ProjectResponse(BaseModel):
     id: str
     tenant_id: str
     name: str
-    industry: str
+    industry: Optional[str] = None
     business_domain: Optional[str] = None
     status: str = "active"
     created_at: datetime

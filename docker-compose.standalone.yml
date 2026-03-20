@@ -8,6 +8,10 @@ services:
       dockerfile: Dockerfile.interview
     ports:
       - "8011:8001"
+    volumes:
+      - ./src:/app/src
+      - ./uploads:/app/uploads
+    command: ["uvicorn", "src.interview.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@interview-postgres:5432/superinsight
       - REDIS_URL=redis://interview-redis:6379/0
@@ -16,6 +20,16 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
       - PROMETHEUS_ENABLED=true
+      - BAIDU_PAN_APP_KEY=${BAIDU_PAN_APP_KEY:-}
+      - BAIDU_PAN_SECRET_KEY=${BAIDU_PAN_SECRET_KEY:-}
+      - BAIDU_PAN_REDIRECT_URI=${BAIDU_PAN_REDIRECT_URI:-http://localhost:8011/api/baidu-pan/callback}
+      - BAIDU_PAN_APP_DIR=${BAIDU_PAN_APP_DIR:-/apps/SuperInsight}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
+      - LLM_MODEL_NAME=${LLM_MODEL_NAME:-gpt-3.5-turbo}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2048}
+      - LLM_ENCRYPTION_KEY=${LLM_ENCRYPTION_KEY:-}
     depends_on:
       interview-postgres:
         condition: service_healthy

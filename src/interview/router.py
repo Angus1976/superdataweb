@@ -9,17 +9,22 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, Field
 
 from src.interview.models import IndustryTemplateRequest, ProjectCreateRequest
 from src.interview.session_models import InterviewMessage
 from src.interview.security import InterviewSecurity
-from src.interview.system import InterviewSystem, SessionManager
+from src.interview.system import InterviewSystem, SessionManager, _sessions, _messages, _projects
+from src.interview.llm_client import LLMClient
+from src.interview.llm_models import LLMNotConfiguredError, LLMServiceError
 from src.interview.entity_extractor import InterviewEntityExtractor, SUPPORTED_FILE_TYPES
+from src.interview.audio_transcriber import AudioTranscriber, SUPPORTED_AUDIO_FORMATS
 from src.interview import templates as tmpl_store
 
 # ---------------------------------------------------------------------------
@@ -36,6 +41,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 _security = InterviewSecurity()
 _system = InterviewSystem()
 _extractor = InterviewEntityExtractor()
+_transcriber = AudioTranscriber(model_name="base")
 _session_mgr = SessionManager(security=_security)
 
 
@@ -252,6 +258,98 @@ async def upload_document(
 
 
 # ---------------------------------------------------------------------------
+# Audio upload & ASR transcription endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.post("/temp-project/upload-audio")
+async def upload_audio_temp(
+    file: UploadFile,
+    language: str | None = None,
+):
+    """Upload audio for transcription without a project (used on create page)."""
+    filename = file.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    if ext not in SUPPORTED_AUDIO_FORMATS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的音频格式: .{ext}。支持格式: {', '.join(sorted(SUPPORTED_AUDIO_FORMATS))}",
+        )
+
+    content = await file.read()
+    try:
+        result = await _transcriber.transcribe(content, ext, language=language)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"音频转写失败: {str(exc)}",
+        )
+
+    return {
+        "file_name": filename,
+        "transcription": {
+            "text": result.text,
+            "language": result.language,
+            "duration_seconds": result.duration_seconds,
+            "segments": result.segments,
+        },
+    }
+
+
+@router.post("/{project_id}/upload-audio")
+async def upload_audio(
+    project_id: str,
+    file: UploadFile,
+    language: str | None = None,
+    tenant_id: str = Depends(get_current_tenant),
+):
+    """Upload an audio file and transcribe it using Whisper ASR.
+
+    Supports: mp3, wav, flac, ogg, m4a, aac, wma, opus, webm, amr, mp4, mpeg.
+    Optional query param `language` for language hint (e.g. "zh", "en").
+    """
+    filename = file.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    if ext not in SUPPORTED_AUDIO_FORMATS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的音频格式: .{ext}。支持格式: {', '.join(sorted(SUPPORTED_AUDIO_FORMATS))}",
+        )
+
+    content = await file.read()
+    try:
+        result = await _transcriber.transcribe(content, ext, language=language)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"音频转写失败: {str(exc)}",
+        )
+
+    return {
+        "project_id": project_id,
+        "file_name": filename,
+        "transcription": {
+            "text": result.text,
+            "language": result.language,
+            "duration_seconds": result.duration_seconds,
+            "segments": result.segments,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # Session management endpoints (intelligent-interview)
 # ---------------------------------------------------------------------------
 
@@ -273,6 +371,82 @@ async def send_message(
 ):
     """Send a message in an interview session."""
     return await _session_mgr.send_message(session_id, tenant_id, msg.content)
+
+
+@router.post("/sessions/{session_id}/messages/stream")
+async def send_message_stream(
+    session_id: str,
+    msg: InterviewMessage,
+    tenant_id: str = Depends(get_current_tenant),
+):
+    """SSE 流式端点：逐块返回 AI 响应。"""
+    session = _sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session["status"] != "active":
+        raise HTTPException(status_code=409, detail="Session already ended")
+
+    llm_client = _session_mgr._llm_client
+
+    # Build message list: system + history + current user
+    project = _projects.get(session.get("project_id", ""))
+    system_prompt = ""
+    if project:
+        tmpl = tmpl_store.get_template_by_industry(project.get("industry", ""))
+        if tmpl:
+            system_prompt = tmpl.system_prompt
+
+    history = [
+        {"role": m["role"], "content": m["content"]}
+        for m in _messages.get(session_id, [])
+    ]
+    messages = LLMClient.build_messages(system_prompt, history, msg.content)
+
+    async def event_generator():
+        full_response = ""
+        try:
+            if llm_client is None:
+                raise LLMNotConfiguredError()
+
+            async for chunk in llm_client.chat_completion_stream(
+                session["tenant_id"], messages
+            ):
+                full_response += chunk
+                yield f"data: {chunk}\n\n"
+
+            yield "data: [DONE]\n\n"
+
+            # Store user message + complete AI response to history
+            current_round = session["current_round"]
+            session["current_round"] = current_round + 1
+
+            sanitized = msg.content
+            if _session_mgr._security:
+                sanitized = _session_mgr._security.sanitize_content(msg.content)
+
+            _messages.setdefault(session_id, []).append({
+                "role": "user",
+                "content": msg.content,
+                "sanitized_content": sanitized,
+                "round_number": current_round + 1,
+            })
+            _messages[session_id].append({
+                "role": "assistant",
+                "content": full_response,
+                "sanitized_content": full_response,
+                "round_number": current_round + 1,
+            })
+
+        except (LLMNotConfiguredError, LLMServiceError):
+            yield f'data: {json.dumps({"error": "AI 响应中断，请重试"}, ensure_ascii=False)}\n\n'
+        except Exception:
+            yield f'data: {json.dumps({"error": "AI 响应中断，请重试"}, ensure_ascii=False)}\n\n'
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+    )
 
 
 @router.post("/sessions/{session_id}/end")

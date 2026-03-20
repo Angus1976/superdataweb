@@ -126,3 +126,33 @@ class BatchImportResult(BaseModel):
     success_count: int
     failure_count: int
     errors: list[BatchImportError]
+
+
+# ---------------------------------------------------------------------------
+# Enterprise management models
+# ---------------------------------------------------------------------------
+
+
+class EnterpriseCreateRequest(BaseModel):
+    """管理员创建企业请求。"""
+
+    name: str = Field(..., min_length=1, description="企业名称")
+    code: str = Field(..., min_length=1, description="企业号")
+    domain: str | None = Field(default=None, description="企业域名")
+
+
+class EnterpriseResponse(BaseModel):
+    """企业响应。"""
+
+    id: str
+    name: str
+    code: str
+    domain: str | None
+    status: str
+    created_at: datetime
+
+
+class EnterpriseListResponse(BaseModel):
+    """企业列表响应。"""
+
+    items: list[EnterpriseResponse]

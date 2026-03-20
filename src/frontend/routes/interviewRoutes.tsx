@@ -22,9 +22,17 @@ const OfflineImportPage = React.lazy(
 const LabelPreviewPage = React.lazy(
   () => import('../pages/LabelPreviewPage'),
 );
+const InterviewHistoryPage = React.lazy(
+  () => import('../pages/InterviewHistoryPage'),
+);
+const IndustryTemplatePage = React.lazy(
+  () => import('../pages/IndustryTemplatePage'),
+);
 const LoginPage = React.lazy(() => import('../pages/LoginPage'));
 const RegisterPage = React.lazy(() => import('../pages/RegisterPage'));
 const AdminUserPage = React.lazy(() => import('../pages/AdminUserPage'));
+const FileManagePage = React.lazy(() => import('../pages/FileManagePage'));
+const LLMConfigPage = React.lazy(() => import('../pages/LLMConfigPage'));
 
 export const interviewRoutes = (
   <>
@@ -50,6 +58,22 @@ export const interviewRoutes = (
       }
     />
     <Route
+      path="/interview/history"
+      element={
+        <ProtectedRoute>
+          <InterviewHistoryPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/interview/templates"
+      element={
+        <ProtectedRoute>
+          <IndustryTemplatePage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
       path="/interview/import/:projectId"
       element={
         <ProtectedRoute>
@@ -66,12 +90,28 @@ export const interviewRoutes = (
       }
     />
 
-    {/* Admin-only route */}
+    {/* Admin-only routes */}
     <Route
       path="/admin/users"
       element={
         <ProtectedRoute requireAdmin>
           <AdminUserPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/admin/files"
+      element={
+        <ProtectedRoute requireAdmin>
+          <FileManagePage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/admin/llm-config"
+      element={
+        <ProtectedRoute requireAdmin>
+          <LLMConfigPage />
         </ProtectedRoute>
       }
     />

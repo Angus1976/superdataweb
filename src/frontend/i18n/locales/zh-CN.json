@@ -61,6 +61,7 @@
     "editUser": "编辑用户",
     "deleteUser": "删除用户",
     "batchImport": "批量导入",
+    "downloadTemplate": "下载模板",
     "importResult": "导入结果",
     "successCount": "成功数",
     "failureCount": "失败数",
@@ -78,13 +79,23 @@
     "importSuccess": "导入完成",
     "noData": "暂无数据",
     "totalUsers": "用户总数",
-    "searchPlaceholder": "搜索用户邮箱"
+    "searchPlaceholder": "搜索用户邮箱",
+    "addEnterprise": "新增企业号",
+    "enterpriseName": "企业名称",
+    "enterpriseCode": "企业号",
+    "enterpriseDomain": "企业域名",
+    "enterpriseNamePlaceholder": "请输入企业名称",
+    "enterpriseCodePlaceholder": "请输入企业号",
+    "enterpriseDomainPlaceholder": "请输入企业域名，如 superinsight.com",
+    "enterpriseCreateSuccess": "企业号创建成功",
+    "enterpriseCodeExists": "企业号已存在"
   },
   "menu": {
     "interview": "发起访谈",
     "history": "访谈记录",
     "templates": "行业模板",
-    "userManagement": "用户管理"
+    "userManagement": "用户管理",
+    "fileManagement": "文件管理"
   },
   "auth": {
     "unauthorized": "未授权，请先登录",

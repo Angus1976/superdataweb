@@ -14,6 +14,12 @@ class Settings:
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL", "postgresql+asyncpg://localhost/superinsight"
     )
+    LLM_API_KEY: str = os.getenv("LLM_API_KEY", "")
+    LLM_BASE_URL: str = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
+    LLM_MODEL_NAME: str = os.getenv("LLM_MODEL_NAME", "gpt-3.5-turbo")
+    LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
+    LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2048"))
+    LLM_ENCRYPTION_KEY: str = os.getenv("LLM_ENCRYPTION_KEY", "")
 
 
 settings = Settings()

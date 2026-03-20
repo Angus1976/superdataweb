@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Form, Input, Button, Card, Typography, message, Space, Tooltip } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, Card, Typography, message, Space, Tooltip, Select } from 'antd';
 import { MailOutlined, LockOutlined, BankOutlined, ThunderboltOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { enterpriseApi } from '../services/api';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const { Title, Text } = Typography;
@@ -13,6 +14,13 @@ const RegisterPage: React.FC = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [enterprises, setEnterprises] = useState<Array<{ code: string; name: string }>>([]);
+
+  useEffect(() => {
+    enterpriseApi.list().then(({ data }) => {
+      setEnterprises(data.items.map((e: any) => ({ code: e.code, name: e.name })));
+    }).catch(() => {});
+  }, []);
 
   const onFinish = async (values: { email: string; password: string; enterprise_code: string }) => {
     setLoading(true);
@@ -79,7 +87,15 @@ const RegisterPage: React.FC = () => {
             extra={<Text type="secondary" style={{ fontSize: 12 }}>{t('register.enterpriseCodeHint')}</Text>}
             rules={[{ required: true, message: t('register.enterpriseCodePlaceholder') }]}
           >
-            <Input prefix={<BankOutlined style={{ color: '#667eea' }} />} placeholder={t('register.enterpriseCodePlaceholder')} />
+            <Select
+              placeholder={t('register.enterpriseCodePlaceholder')}
+              suffixIcon={<BankOutlined style={{ color: '#667eea' }} />}
+              options={enterprises.map(e => ({ value: e.code, label: `${e.name} (${e.code})` }))}
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 12 }}>

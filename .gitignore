@@ -9,3 +9,6 @@ __pycache__/
 # Frontend dependencies
 src/frontend/node_modules/
 src/frontend/package-lock.json
+
+# Uploaded files
+uploads/

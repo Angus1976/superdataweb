@@ -2,13 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for Presidio + build tools for bcrypt/hiredis
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl gcc libffi-dev && \
+# Install system dependencies for Presidio + build tools for bcrypt/hiredis + ffmpeg for audio
+# Retry up to 3 times to handle transient network failures
+RUN for i in 1 2 3; do \
+      apt-get update && \
+      apt-get install -y --no-install-recommends curl gcc libffi-dev ffmpeg && \
+      break || sleep 5; \
+    done && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
+RUN pip install --no-cache-dir --retries 3 --timeout 60 -r requirements.txt && \
     apt-get purge -y --auto-remove gcc libffi-dev
 
 # Pre-download spacy model so it's baked into the image

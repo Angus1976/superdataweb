@@ -85,4 +85,31 @@ export const userApi = {
   },
 };
 
+// Enterprise management API functions
+export const enterpriseApi = {
+  list: () => api.get('/enterprises'),
+  create: (data: { name: string; code: string; domain?: string }) => api.post('/enterprises', data),
+};
+
+// LLM config API functions
+export const llmConfigApi = {
+  getConfig: () => api.get('/llm-config/config'),
+  saveConfig: (data: {
+    provider_name: string;
+    api_key: string;
+    base_url: string;
+    model_name: string;
+    temperature: number;
+    max_tokens: number;
+  }) => api.post('/llm-config/config', data),
+  testConnectivity: (data: {
+    provider_name: string;
+    api_key: string;
+    base_url: string;
+    model_name: string;
+    temperature: number;
+    max_tokens: number;
+  }) => api.post('/llm-config/config/test', data),
+};
+
 export default api;

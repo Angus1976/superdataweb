@@ -61,6 +61,7 @@
     "editUser": "Edit User",
     "deleteUser": "Delete User",
     "batchImport": "Batch Import",
+    "downloadTemplate": "Download Template",
     "importResult": "Import Result",
     "successCount": "Succeeded",
     "failureCount": "Failed",
@@ -78,13 +79,23 @@
     "importSuccess": "Import completed",
     "noData": "No data",
     "totalUsers": "Total Users",
-    "searchPlaceholder": "Search by email"
+    "searchPlaceholder": "Search by email",
+    "addEnterprise": "Add Enterprise",
+    "enterpriseName": "Enterprise Name",
+    "enterpriseCode": "Enterprise Code",
+    "enterpriseDomain": "Domain",
+    "enterpriseNamePlaceholder": "Enter enterprise name",
+    "enterpriseCodePlaceholder": "Enter enterprise code",
+    "enterpriseDomainPlaceholder": "Enter domain, e.g. superinsight.com",
+    "enterpriseCreateSuccess": "Enterprise created",
+    "enterpriseCodeExists": "Enterprise code already exists"
   },
   "menu": {
     "interview": "Start Interview",
     "history": "Interview History",
     "templates": "Templates",
-    "userManagement": "User Management"
+    "userManagement": "User Management",
+    "fileManagement": "File Management"
   },
   "auth": {
     "unauthorized": "Unauthorized, please sign in",

@@ -6,11 +6,14 @@ Session management methods will be added by the intelligent-interview sub-module
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 from src.interview.models import ProjectCreateRequest, ProjectResponse
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -98,6 +101,9 @@ from src.interview.session_models import (
 )
 from src.interview.session_cache import SessionCache
 from src.interview import templates as tmpl_store
+from src.interview.llm_client import LLMClient
+from src.interview.llm_models import LLMNotConfiguredError, LLMServiceError
+from src.interview.prompt_manager import PromptManager
 
 # In-memory session store (replaced by PostgreSQL in production)
 _sessions: dict[str, dict[str, Any]] = {}
@@ -110,9 +116,17 @@ _default_cache = SessionCache()
 class SessionManager:
     """会话管理器 — 管理访谈会话生命周期。"""
 
-    def __init__(self, cache: SessionCache | None = None, security: Any = None) -> None:
+    def __init__(
+        self,
+        cache: SessionCache | None = None,
+        security: Any = None,
+        llm_client: LLMClient | None = None,
+        prompt_manager: PromptManager | None = None,
+    ) -> None:
         self._cache = cache or _default_cache
         self._security = security
+        self._llm_client = llm_client
+        self._prompt_manager = prompt_manager
 
     async def start_session(
         self, project_id: str, tenant_id: str
@@ -161,7 +175,7 @@ class SessionManager:
         )
 
     async def send_message(
-        self, session_id: str, tenant_id: str, message: str
+        self, session_id: str, tenant_id: str, message: str, *, metadata: dict | None = None
     ) -> AIResponse:
         """处理客户消息。"""
         session = _sessions.get(session_id)
@@ -197,8 +211,46 @@ class SessionManager:
             if self._security:
                 sanitized = self._security.sanitize_content(message)
 
-            # Generate AI response (stub — real LLM integration in production)
-            ai_message = f"感谢您的信息。关于「{sanitized[:50]}」，请问还有哪些具体的业务规则需要补充？"
+            # Generate AI response
+            if self._llm_client is not None:
+                try:
+                    # Load template system_prompt for the project
+                    project = _projects.get(session.get("project_id", ""))
+                    system_prompt = ""
+                    if project:
+                        tmpl = tmpl_store.get_template_by_industry(
+                            project.get("industry", "")
+                        )
+                        if tmpl:
+                            system_prompt = tmpl.system_prompt
+
+                    # Build history from existing messages (role + content only)
+                    history = [
+                        {"role": m["role"], "content": m["content"]}
+                        for m in _messages.get(session_id, [])
+                    ]
+
+                    # Build full message list: system + history + current user
+                    messages = LLMClient.build_messages(
+                        system_prompt, history, sanitized
+                    )
+
+                    ai_message = await self._llm_client.chat_completion(
+                        session["tenant_id"], messages
+                    )
+                except LLMNotConfiguredError:
+                    ai_message = "AI 服务尚未配置，请联系管理员完成 LLM 设置"
+                except LLMServiceError as exc:
+                    ai_message = "AI 服务暂时不可用，请稍后重试"
+                    logger.error(
+                        "LLM service error in session %s: [%s] %s",
+                        session_id,
+                        exc.status_code,
+                        exc.message,
+                    )
+            else:
+                # Stub — backward compatibility when no LLMClient injected
+                ai_message = f"感谢您的信息。关于「{sanitized[:50]}」，请问还有哪些具体的业务规则需要补充？"
 
             # Detect implicit gaps
             gaps = await self.detect_implicit_gaps(session_id)
@@ -213,6 +265,8 @@ class SessionManager:
                 "sanitized_content": sanitized,
                 "round_number": current_round + 1,
             }
+            if metadata:
+                msg_record["metadata"] = metadata
             _messages.setdefault(session_id, []).append(msg_record)
             _messages[session_id].append({
                 "role": "assistant",
