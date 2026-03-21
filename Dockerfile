@@ -1,0 +1,34 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies for Presidio + build tools for bcrypt/hiredis + ffmpeg for audio
+# Retry up to 3 times to handle transient network failures
+RUN for i in 1 2 3; do \
+      apt-get update && \
+      apt-get install -y --no-install-recommends curl gcc libffi-dev ffmpeg && \
+      break || sleep 5; \
+    done
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --retries 3 --timeout 60 -r requirements.txt && \
+    apt-get purge -y --auto-remove gcc libffi-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Pre-download spacy model so it's baked into the image
+# (avoids 400MB download on every container start)
+# Model file must be pre-downloaded to project root:
+#   curl -C - -L -o en_core_web_lg-3.8.0.whl https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl
+COPY en_core_web_lg-3.8.0-py3-none-any.whl /tmp/en_core_web_lg-3.8.0-py3-none-any.whl
+RUN pip install --no-cache-dir /tmp/en_core_web_lg-3.8.0-py3-none-any.whl && \
+    rm /tmp/en_core_web_lg-3.8.0-py3-none-any.whl && \
+    python -c "import en_core_web_lg; print('Model OK')"
+
+COPY src/ ./src/
+
+EXPOSE 8001
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/interview/health')" || exit 1
+
+CMD ["uvicorn", "src.interview.main:app", "--host", "0.0.0.0", "--port", "8001"]
