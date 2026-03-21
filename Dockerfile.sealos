@@ -1,0 +1,65 @@
+# Sealos 一键部署用 Dockerfile
+# 多阶段构建：前端 + 后端 + spaCy 模型
+
+# ========== 后端依赖构建 ==========
+FROM python:3.11-slim AS backend-builder
+
+WORKDIR /build
+
+RUN for i in 1 2 3; do \
+      apt-get update && \
+      apt-get install -y --no-install-recommends gcc libffi-dev && \
+      break || sleep 5; \
+    done && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --retries 3 --timeout 60 -r requirements.txt
+
+# spaCy 模型（使用本地预下载的 whl，避免构建时从 GitHub 下载 560MB）
+COPY en_core_web_lg-3.8.0-py3-none-any.whl /tmp/
+RUN pip install --no-cache-dir /tmp/en_core_web_lg-3.8.0-py3-none-any.whl \
+    && rm /tmp/en_core_web_lg-3.8.0-py3-none-any.whl
+
+# ========== 前端构建 ==========
+FROM node:20-slim AS frontend-builder
+
+WORKDIR /build
+COPY src/frontend/package.json ./
+RUN npm install --retry 3
+
+COPY src/frontend/ ./
+RUN npm run build
+
+# ========== 最终镜像 ==========
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 运行时系统依赖（ffmpeg 用于音频转码，curl 用于健康检查）
+RUN for i in 1 2 3; do \
+      apt-get update && \
+      apt-get install -y --no-install-recommends curl ffmpeg && \
+      break || sleep 5; \
+    done && rm -rf /var/lib/apt/lists/*
+
+# 复制 Python 包
+COPY --from=backend-builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=backend-builder /usr/local/bin /usr/local/bin
+
+# 复制应用代码
+COPY src/interview/ ./src/interview/
+COPY src/__init__.py ./src/__init__.py
+COPY migrations/ ./migrations/
+
+# 复制前端构建产物
+COPY --from=frontend-builder /build/dist ./src/frontend/dist
+
+# 创建上传目录
+RUN mkdir -p /app/uploads
+
+EXPOSE 8001
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8001/api/interview/health || exit 1
+
+CMD ["uvicorn", "src.interview.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]

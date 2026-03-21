@@ -87,8 +87,21 @@ class InterviewSecurity:
     """访谈模块安全层，复用现有 JWT 机制，集成 Presidio 脱敏。"""
 
     def __init__(self) -> None:
-        self.analyzer = _build_analyzer()
-        self.anonymizer = AnonymizerEngine()
+        # Lazy-init: defer heavy spaCy model loading until first sanitize call
+        self._analyzer = None
+        self._anonymizer = None
+
+    @property
+    def analyzer(self) -> AnalyzerEngine:
+        if self._analyzer is None:
+            self._analyzer = _build_analyzer()
+        return self._analyzer
+
+    @property
+    def anonymizer(self) -> AnonymizerEngine:
+        if self._anonymizer is None:
+            self._anonymizer = AnonymizerEngine()
+        return self._anonymizer
 
     async def verify_tenant_access(self, tenant_id: str, project_id: str) -> bool:
         """校验租户是否有权访问指定项目。

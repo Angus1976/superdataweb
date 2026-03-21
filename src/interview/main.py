@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -16,11 +19,23 @@ from src.interview.asr_router import asr_router
 from src.interview.router import install_exception_handlers, router
 from src.interview.user_router import user_router
 
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: log startup/shutdown."""
+    logger.info("SuperInsight Interview Service starting up...")
+    yield
+    logger.info("SuperInsight Interview Service shutting down...")
+
+
 app = FastAPI(
     title="SuperInsight Interview Service",
     version="1.0.0",
     docs_url="/api/interview/docs",
     openapi_url="/api/interview/openapi.json",
+    lifespan=lifespan,
 )
 
 # Register unified exception handlers
