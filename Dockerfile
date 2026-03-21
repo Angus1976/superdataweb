@@ -14,10 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir --retries 3 --timeout 60 -r requirements.txt
 
-# 安装 spacy 模型
-COPY en_core_web_lg-3.8.0-py3-none-any.whl /tmp/
-RUN pip install --no-cache-dir /tmp/en_core_web_lg-3.8.0-py3-none-any.whl \
-    && rm /tmp/en_core_web_lg-3.8.0-py3-none-any.whl
+# 下载并安装 spacy 模型（避免提交大文件到 Git）
+RUN pip install --no-cache-dir https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl
 
 # ========== 前端构建阶段 ==========
 FROM node:20-slim AS frontend-builder
