@@ -38,7 +38,7 @@ services:
     networks:
       - interview-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/api/interview/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/interview/health')"]
       interval: 30s
       timeout: 10s
       retries: 3

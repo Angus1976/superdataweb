@@ -8,12 +8,12 @@ RUN for i in 1 2 3; do \
       apt-get update && \
       apt-get install -y --no-install-recommends curl gcc libffi-dev ffmpeg && \
       break || sleep 5; \
-    done && \
-    rm -rf /var/lib/apt/lists/*
+    done
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir --retries 3 --timeout 60 -r requirements.txt && \
-    apt-get purge -y --auto-remove gcc libffi-dev
+    apt-get purge -y --auto-remove gcc libffi-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 # Pre-download spacy model so it's baked into the image
 # (avoids 400MB download on every container start)
@@ -29,6 +29,6 @@ COPY src/ ./src/
 EXPOSE 8001
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:8001/api/interview/health || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/interview/health')" || exit 1
 
 CMD ["uvicorn", "src.interview.main:app", "--host", "0.0.0.0", "--port", "8001"]
