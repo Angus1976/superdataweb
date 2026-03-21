@@ -22,9 +22,9 @@ RUN pip install --no-cache-dir /tmp/en_core_web_lg-3.8.0-py3-none-any.whl \
 # ========== 前端构建阶段 ==========
 FROM node:20-slim AS frontend-builder
 
-WORKDIR /app/frontend
+WORKDIR /app
 COPY src/frontend/package.json src/frontend/package-lock.json ./
-RUN npm ci --prefer-offline
+RUN npm install
 
 COPY src/frontend/ ./
 RUN npm run build
@@ -49,7 +49,7 @@ COPY src/interview/ ./src/interview/
 COPY migrations/ ./migrations/
 
 # 复制前端构建产物
-COPY --from=frontend-builder /app/frontend/dist ./src/frontend/dist
+COPY --from=frontend-builder /app/dist ./src/frontend/dist
 
 # 创建 uploads 目录
 RUN mkdir -p /app/uploads
