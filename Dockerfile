@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir https://github.com/explosion/spacy-models/release
 FROM node:20-slim AS frontend-builder
 
 WORKDIR /app
-COPY src/frontend/package.json src/frontend/package-lock.json ./
+COPY src/frontend/package.json ./
 RUN npm install
 
 COPY src/frontend/ ./
