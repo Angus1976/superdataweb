@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from prometheus_client import make_asgi_app
 
 from src.interview.auth_router import auth_router
@@ -39,3 +41,20 @@ app.include_router(asr_router)
 # Mount Prometheus metrics endpoint
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
+
+# Serve frontend static files
+import os
+frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if os.path.exists(frontend_dist):
+    app.mount("/static", StaticFiles(directory=frontend_dist), name="static")
+    
+    @app.get("/")
+    async def serve_index():
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
+    
+    @app.get("/{path:path}")
+    async def serve_frontend(path: str):
+        file_path = os.path.join(frontend_dist, path)
+        if os.path.exists(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
